@@ -1,3 +1,4 @@
+@@@START
 """
 Inventory & Billing System (EMG Core v49 Optimized Engine)
 
@@ -12,7 +13,7 @@ import datetime
 from decimal import Decimal
 import functools
 import threading
-from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 # ---------------------------------------------------------------------
 # Bug 1 Fix: Mutable default argument resolved via None sentinel
@@ -154,7 +155,6 @@ def get_item_price(catalog: Dict[str, Dict[str, Any]], sku: str) -> Optional[flo
 # ---------------------------------------------------------------------
 def sort_orders_by_priority(orders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Sorts orders stably by priority while preserving original relative order."""
-    # Python's Timsort is stable; mapping explicitly by priority retains stability if secondary key is omitted or stable
     return sorted(orders, key=lambda o: o["priority"])
 
 
@@ -187,7 +187,6 @@ def percent_of_stock_sold(sold: float | int, total_stock: float | int) -> float:
 @functools.lru_cache(maxsize=1024)
 def get_cached_price(sku: str, compute_fn_id: Callable[[str], float]) -> float:
     """Retrieves cached price using an LRU-bounded memoization cache."""
-    # Note: Accepting function identifier or utilizing internal bounded cache mechanism
     return compute_fn_id(sku)
 
 
