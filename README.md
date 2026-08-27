@@ -17,7 +17,7 @@ The test cases in this harness validate core system capabilities across several 
 
 ```text
 tests/
-├── __init__.py          # Package initialization for test suite
+├── __init__.py          # Package initialization for the test suite
 ├── buggy_module.py      # Contains deliberate logic and syntax errors
 ├── edge_cases.py        # Stress tests for extreme input conditions
 └── test_runner.py       # Automated harness to execute and verify fixes
