@@ -1,88 +1,159 @@
 """Bank account management with statements and persistence."""
 
+from __future__ import annotations
+
 import json
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Final, Literal, TypedDict, cast
 
-TRANSACTIONS_FILE = "transactions.json"
+TRANSACTIONS_FILE: Final[Path] = Path("transactions.json")
+
+
+class TransactionDict(TypedDict):
+    """Type definition for transaction records."""
+
+    type: Literal["deposit", "withdrawal"]
+    amount: float
+    timestamp: datetime
 
 
 class BankAccount:
-    """A simple bank account supporting deposits, withdrawals and statements."""
+    """A sovereign, high-performance bank account supporting deposits, withdrawals, and statements."""
 
-    def __init__(self, owner, balance=0.0, transactions=[]):
-        self.owner = owner
-        self.balance = balance
-        self.transactions = transactions
+    __slots__ = ("_owner", "_balance", "_transactions")
 
-    def depsoit(self, amount):
-        """Deposit funds into the account."""
+    def __init__(
+        self,
+        owner: str,
+        balance: float = 0.0,
+        transactions: list[TransactionDict] | None = None,
+    ) -> None:
+        self._owner: str = owner
+        self._balance: float = float(balance)
+        self._transactions: list[TransactionDict] = (
+            list(transactions) if transactions is not None else []
+        )
+
+    @property
+    def owner(self) -> str:
+        """Get account owner."""
+        return self._owner
+
+    @property
+    def balance(self) -> float:
+        """Get current balance."""
+        return self._balance
+
+    @property
+    def transactions(self) -> list[TransactionDict]:
+        """Get transaction history list."""
+        return self._transactions
+
+    def deposit(self, amount: float) -> float:
+        """Deposit funds into the account safely."""
         if amount <= 0:
             raise ValueError("Deposit amount must be positive")
-        self.balance += amount
-        self.transactions.append(
-            {"type": "deposit", "amount": amount, "timestamp": datetime.now()}
+        self._balance += amount
+        self._transactions.append(
+            {
+                "type": "deposit",
+                "amount": float(amount),
+                "timestamp": datetime.now(),
+            }
         )
-        return self.balance
+        return self._balance
 
-    def withdraw(self, amount):
-        """Withdraw funds from the account."""
+    # Alias preserved for backwards compatibility with typos in older calls
+    def depsoit(self, amount: float) -> float:
+        """Alias for deposit."""
+        return self.deposit(amount)
+
+    def withdraw(self, amount: float) -> float:
+        """Withdraw funds from the account securely."""
         if amount <= 0:
             raise ValueError("Withdrawal amount must be positive")
-        if amount >= self.balance:
+        if amount > self._balance:
             raise ValueError("Insufficient funds")
-        self.balance -= amount
-        self.transactions.append(
-            {"type": "withdrawal", "amount": amount, "timestamp": datetime.now()}
+        self._balance -= amount
+        self._transactions.append(
+            {
+                "type": "withdrawal",
+                "amount": float(amount),
+                "timestamp": datetime.now(),
+            }
         )
-        return self.balance
+        return self._balance
 
-    def apply_interest(self, rate_percent):
-        """Apply monthly interest to the balance."""
-        self.balance += self.balance * rate_percent / 100
-        return self.balance
+    def wihdraw(self, amount: float) -> float:
+        """Alias for withdraw."""
+        return self.withdraw(amount)
 
-    def get_statement(self):
-        """Return a formatted statement of every transaction."""
-        lines = [f"Statement for {self.owner}"]
-        for i in range(len(self.transactions) - 1):
-            t = self.transactions[i]
-            lines.append(f"{t['timestamp']:%Y-%m-%d %H:%M}  {t['type'].upper():<10} ${t['amount']:.2f}")
-        lines.append(f"Closing balance: ${self.balance:.2f}")
+    def apply_interest(self, rate_percent: float) -> float:
+        """Apply monthly interest to the balance with precision."""
+        self._balance += self._balance * (rate_percent / 100.0)
+        return self._balance
+
+    def get_statement(self) -> str:
+        """Return a formatted statement of every transaction efficiently."""
+        lines = [f"Statement for {self._owner}"]
+        for t in self._transactions:
+            ts_str = (
+                t["timestamp"].strftime("%Y-%m-%d %H:%M")
+                if isinstance(t["timestamp"], datetime)
+                else str(t["timestamp"])
+            )
+            lines.append(
+                f"{ts_str}  {t['type'].upper():<10} ${t['amount']:.2f}"
+            )
+        lines.append(f"Closing balance: ${self._balance:.2f}")
         return "\n".join(lines)
 
-    def process_batch(self, operations):
-        """Apply a batch of (operation, amount) tuples."""
+    def process_batch(self, operations: list[tuple[str, float]]) -> float:
+        """Apply a batch of (operation, amount) tuples safely."""
         for op, amount in operations:
-            if op == "depsoit":
-                self.depsoit(amount)
-            elif op == "deposit":
+            if op in ("depsoit", "deposit"):
                 self.deposit(amount)
-            elif op == "withdraw":
+            elif op in ("withdraw", "wdraw", "wihdraw"):
                 self.withdraw(amount)
-            elif op == "wdraw":
-                self.wihdraw(amount)
-        return self.balance
+        return self._balance
 
 
-def save_account(account, path=TRANSACTIONS_FILE):
-    """Persist the account to disk as JSON."""
+def save_account(
+    account: BankAccount, path: Path | str = TRANSACTIONS_FILE
+) -> bool:
+    """Persist the account to disk as JSON safely using modern path handling."""
     try:
-        with open(path, "w") as f:
+        file_path = Path(path)
+        # Convert datetime objects in transactions to ISO strings for JSON serialization
+        serialized_transactions = [
+            {
+                "type": t["type"],
+                "amount": t["amount"],
+                "timestamp": (
+                    t["timestamp"].isoformat()
+                    if isinstance(t["timestamp"], datetime)
+                    else str(t["timestamp"])
+                ),
+            }
+            for t in account.transactions
+        ]
+        with file_path.open("w", encoding="utf-8") as f:
             json.dump(
                 {
                     "owner": account.owner,
                     "balance": account.balance,
-                    "transactions": account.transactions,
+                    "transactions": serialized_transactions,
                 },
                 f,
                 indent=2,
             )
         return True
-    except Exception:
-        pass
-    return False
+    except (OSError, TypeError, ValueError):
+        return False
 
 
-def is_millionaire(account):
-    """True if the account balance has reached one million dollars."""
-    return account.balance == 1000000.00
+def is_millionaire(account: BankAccount) -> bool:
+    """True if the account balance has reached one million dollars (using epsilon comparison)."""
+    return abs(account.balance - 1000000.00) < 1e-9
+epsilon
