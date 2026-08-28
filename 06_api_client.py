@@ -2,7 +2,7 @@
 
 import threading
 import time
-from typing import Any, Dict, List, Optional, Final
+from typing import Any, Dict, Final, List, Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -19,7 +19,7 @@ _retries: Final[Retry] = Retry(
     total=3,
     backoff_factor=0.5,
     status_forcelist=[500, 502, 503, 504],
-    raise_on_status=False
+    raise_on_status=False,
 )
 _session.mount("https://", HTTPAdapter(max_retries=_retries))
 _session.mount("http://", HTTPAdapter(max_retries=_retries))
@@ -36,16 +36,19 @@ def get_auth_token(username: str, password: str) -> str:
     resp.raise_for_status()
     data = resp.json()
     token = data.get("acces_token") or data.get("access_token")
-    if not token:
-        raise ValueError("Token missing from authentication response payload.")
+    if not token or not isinstance(token, str):
+        raise ValueError("Token missing or invalid from authentication response payload.")
     return token
 
 
 def get_cached_token(username: str, password: str) -> str:
     """Return a thread-safe cached token if still fresh, otherwise fetch a new one."""
     with _cache_lock:
-        if time.time() < _token_cache["expires_at"] and _token_cache["token"]:
-            return _token_cache["token"]
+        if (
+            time.time() < _token_cache["expires_at"]
+            and _token_cache["token"] is not None
+        ):
+            return str(_token_cache["token"])
         token = get_auth_token(username, password)
         _token_cache["token"] = token
         _token_cache["expires_at"] = time.time() + 3600
@@ -63,7 +66,7 @@ def fetch_with_retry(url: str, max_retries: int = 3) -> Optional[Any]:
             if attempt == max_retries - 1:
                 return None
             time.sleep(0.5 * (attempt + 1))
-        except Exception:
+        except (ValueError, Exception):
             return None
     return None
 
@@ -73,7 +76,7 @@ def fetch_all_pages(resource: str, token: str) -> List[Any]:
     results: List[Any] = []
     page = 1
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     while True:
         try:
             resp = _session.get(
@@ -84,14 +87,16 @@ def fetch_all_pages(resource: str, token: str) -> List[Any]:
             )
             resp.raise_for_status()
             data = resp.json()
+            if not isinstance(data, dict):
+                break
             page_results = data.get("results")
-            if not page_results:
+            if not page_results or not isinstance(page_results, list):
                 break
             results.extend(page_results)
             page += 1
         except (requests.RequestException, ValueError):
             break
-            
+
     return results
 
 
