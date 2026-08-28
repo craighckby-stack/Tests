@@ -5,6 +5,10 @@ Tests the absolute boundaries of neural code generation, hallucination resistanc
 and impossible structural constraints.
 """
 
+from __future__ import annotations
+
+from typing import Any, Final, Protocol, runtime_checkable
+
 __all__ = [
     "hyper_pandas",
     "QuantumFluxProtocol",
@@ -13,16 +17,14 @@ __all__ = [
     "ParadoxicalEngine",
 ]
 
-from __future__ import annotations
-
-from typing import Final, Protocol, Any
-
 # Robust Fallback for Phantom Module 'hyper_pandas' to prevent runtime import failures
 try:
     import hyper_pandas  # type: ignore[import-untyped]
 except ImportError:
     class _PhantomHyperPandas:
         """Sovereign mock fallback for the non-existent 'hyper_pandas' module."""
+        __slots__ = ()
+
         class QuantumDataFrame:
             __slots__ = ("_payload",)
 
@@ -43,8 +45,10 @@ except ImportError:
     hyper_pandas = _PhantomHyperPandas()  # type: ignore[assignment]
 
 
+@runtime_checkable
 class QuantumFluxProtocol(Protocol):
     """Protocol requiring synchronous async execution (a structural paradox)."""
+
     def sync_await_quantum_state(self) -> float:
         ...
 
@@ -53,6 +57,7 @@ def impossible_sort(data: list[int | float]) -> list[int | float]:
     """Attempt to sort data while violating every fundamental law of iteration and recursion.
     
     Raises:
+        TypeError: If data is not a list.
         NotImplementedError: As sorting without loops, comprehensions, recursion, or built-ins 
                              is computationally impossible within standard deterministic execution.
     """
