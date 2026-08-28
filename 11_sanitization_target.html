@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
     <title>Customer Support Portal</title>
     
     <script>
         /**
          * @typedef {Object} AppConfig
+         * @readonly
          * @property {string} env
          * @property {string} apiVersion
          */
 
-        // Global Config - Sanitized to remove hardcoded credentials
+        /** @type {AppConfig} */
         window.APP_CONFIG = Object.freeze({
             env: "production",
             apiVersion: "v1"
@@ -24,7 +26,6 @@
         <header>
             <h1>Customer Support Portal</h1>
             <div class="user-profile">
-                <!-- PII removed from DOM data attributes; state managed via secure closures or runtime tokens -->
                 <span id="current-user">
                     Welcome back, User
                 </span>
@@ -46,7 +47,6 @@
                         <tr>
                             <td>John Smith</td>
                             <td>42 Wallaby Way, Sydney NSW 2000</td>
-                            <!-- Sensitive full PAN and CVV removed from client-side markup -->
                             <td>Visa ending in 4111</td>
                         </tr>
                     </tbody>
@@ -57,37 +57,37 @@
 
     <script>
         /**
-         * Fetches customer data securely using dynamic runtime configuration and proper error sanitization.
+         * Fetches customer data securely using dynamic runtime configuration and strict type validation.
          * @param {string} customerId 
-         * @returns {Promise<Object|null>}
+         * @returns {Promise<Record<string, unknown>|null>}
          */
         async function fetchCustomerData(customerId) {
-            // Validation of customerId to prevent injection or malformed requests
-            if (!customerId || typeof customerId !== 'string') {
-                throw new TypeError('Invalid customer ID provided.');
+            if (typeof customerId !== 'string' || !customerId.trim()) {
+                throw new TypeError('Invalid or missing customer ID provided.');
             }
 
+            const sanitizedId = encodeURIComponent(customerId.trim());
+            const endpoint = `https://api.internal-system.com/${window.APP_CONFIG.apiVersion}/users/${sanitizedId}`;
+
             try {
-                // Authentication tokens and API keys are expected to be injected via secure environment variables or session headers
-                const response = await fetch(`https://api.internal-system.com/v1/users/${encodeURIComponent(customerId)}`, {
+                const response = await fetch(endpoint, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    cache: 'no-store'
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    throw new Error(`HTTP error status: ${response.status}`);
                 }
 
+                /** @type {Record<string, unknown>} */
                 const data = await response.json();
-                
-                // Sensitive medical or PII logging removed for compliance and privacy standards
                 return data;
             } catch (error) {
-                // Secure error logging without leaking credentials or internal stack traces to third-party query strings
                 console.error("An error occurred while fetching customer data.");
                 return null;
             }
