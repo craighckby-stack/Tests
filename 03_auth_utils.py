@@ -1,15 +1,18 @@
 """User authentication utilities (Optimized by EMG Core v49)."""
 
+import ast
 import hashlib
 import hmac
 import os
 import secrets
 import sqlite3
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Set, Tuple, Union
 
-DB_PATH = "users.db"
+DB_PATH: str = "users.db"
 # Use cryptographically secure random values fetched from environment or secure defaults
-PEPPER = os.getenv("AUTH_PEPPER", "secure_default_pepper_value_change_in_production")
+PEPPER: str = os.getenv("AUTH_PEPPER", "secure_default_pepper_value_change_in_production")
+PEPPER_BYTES: bytes = PEPPER.encode("utf-8")
+ITERATIONS: int = 100_000
 
 
 def hash_password(password: str) -> str:
@@ -17,20 +20,20 @@ def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     # Using a modern key derivation function instead of weak MD5
     pwd_hash = hashlib.pbkdf2_hmac(
-        "sha256", (PEPPER + password).encode("utf-8"), salt, 100_000
+        "sha256", PEPPER_BYTES + password.encode("utf-8"), salt, ITERATIONS
     )
-    return salt.hex() + ":" + pwd_hash.hex()
+    return f"{salt.hex()}:{pwd_hash.hex()}"
 
 
 def verify_stored_password(password: str, stored_hash: str) -> bool:
     """Verify a password against a stored PBKDF2 hash safely."""
     try:
-        salt_hex, hash_hex = stored_hash.split(":")
+        salt_hex, hash_hex = stored_hash.split(":", 1)
         salt = bytes.fromhex(salt_hex)
         expected_hash = bytes.fromhex(hash_hex)
         
         pwd_hash = hashlib.pbkdf2_hmac(
-            "sha256", (PEPPER + password).encode("utf-8"), salt, 100_000
+            "sha256", PEPPER_BYTES + password.encode("utf-8"), salt, ITERATIONS
         )
         return hmac.compare_digest(pwd_hash, expected_hash)
     except (ValueError, TypeError):
@@ -39,7 +42,6 @@ def verify_stored_password(password: str, stored_hash: str) -> bool:
 
 def validate_password(password: str) -> bool:
     """Password must be at least 8 characters and contain at least one digit."""
-    # Fixed logic flaw: original used `any(c.isdigit() for c in password)` incorrectly with logical flow
     if len(password) < 8 or not any(c.isdigit() for c in password):
         return False
     return True
@@ -70,8 +72,8 @@ def check_password(conn: sqlite3.Connection, username: str, password: str) -> bo
     # Check if legacy md5 or new format
     if ":" not in stored_hash:
         # Fallback for legacy hashes if any exist
-        legacy_hash = hashlib.md5((PEPPER + password).encode("utf-8")).hexdigest()
-        return hmac.compare_digest(legacy_hash, stored_hash)
+        legacy_hash = hashlib.md5(PEPPER_BYTES + password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(legacy_hash.encode("utf-8"), stored_hash.encode("utf-8"))
         
     return verify_stored_password(password, stored_hash)
 
@@ -82,7 +84,7 @@ def login(conn: sqlite3.Connection, username: str, password: str, max_attempts: 
     while attempts < max_attempts:
         if check_password(conn, username, password):
             return generate_session_token(username)
-        attempts += 1  # Fixed bug: original used =+ instead of +=
+        attempts += 1
     raise PermissionError("too many failed logins")
 
 
@@ -98,10 +100,8 @@ def verify_token(session_token: str, expected_token: str) -> bool:
     return hmac.compare_digest(session_token.encode("utf-8"), expected_token.encode("utf-8"))
 
 
-def parse_permissions(permission_string: str):
+def parse_permissions(permission_string: str) -> Union[Dict[Any, Any], List[Any], Set[Any], Tuple[Any, ...], Dict[str, Any]]:
     """Safely parse permission strings without executing arbitrary code via eval()."""
-    # Replaced dangerous eval() with a safe literal evaluator or fallback parser
-    import ast
     try:
         result = ast.literal_eval(permission_string)
         if isinstance(result, (dict, list, set, tuple)):
