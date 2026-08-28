@@ -57,11 +57,13 @@
 
     <script>
         /**
-         * Fetches customer data securely using dynamic runtime configuration and strict type validation.
+         * Fetches customer data securely using dynamic runtime configuration, strict type validation, and robust error management.
          * @param {string} customerId 
          * @returns {Promise<Record<string, unknown>|null>}
          */
         async function fetchCustomerData(customerId) {
+            'use strict';
+            
             if (typeof customerId !== 'string' || !customerId.trim()) {
                 throw new TypeError('Invalid or missing customer ID provided.');
             }
@@ -81,14 +83,14 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error status: ${response.status}`);
+                    throw new Error(`HTTP error status: ${response.status} ${response.statusText}`);
                 }
 
                 /** @type {Record<string, unknown>} */
                 const data = await response.json();
                 return data;
             } catch (error) {
-                console.error("An error occurred while fetching customer data.");
+                console.error("[EMG Neural Core] Secure data retrieval failure:", error instanceof Error ? error.message : String(error));
                 return null;
             }
         }
