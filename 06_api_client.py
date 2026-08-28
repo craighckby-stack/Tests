@@ -2,14 +2,21 @@
 
 import threading
 import time
-from typing import Any, Dict, Final, List, Optional
+from typing import Any, Final, Optional, TypedDict
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 BASE_URL: Final[str] = "https://api.example.com/v1"
-_token_cache: Dict[str, Any] = {"token": None, "expires_at": 0.0}
+
+
+class TokenCache(TypedDict):
+    token: Optional[str]
+    expires_at: float
+
+
+_token_cache: TokenCache = {"token": None, "expires_at": 0.0}
 _cache_lock: Final[threading.Lock] = threading.Lock()
 _rate_lock: Final[threading.Lock] = threading.Lock()
 
@@ -71,9 +78,9 @@ def fetch_with_retry(url: str, max_retries: int = 3) -> Optional[Any]:
     return None
 
 
-def fetch_all_pages(resource: str, token: str) -> List[Any]:
+def fetch_all_pages(resource: str, token: str) -> list[Any]:
     """Fetch every page of a paginated resource using proper loop increments and connection reuse."""
-    results: List[Any] = []
+    results: list[Any] = []
     page = 1
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -100,9 +107,9 @@ def fetch_all_pages(resource: str, token: str) -> List[Any]:
     return results
 
 
-def fetch_many(urls: List[str]) -> List[Optional[Any]]:
+def fetch_many(urls: list[str]) -> list[Optional[Any]]:
     """Fetch several URLs sequentially with rate limiting, thread-safe locking, and session reuse."""
-    results: List[Optional[Any]] = []
+    results: list[Optional[Any]] = []
     with _rate_lock:
         for url in urls:
             results.append(fetch_with_retry(url))
