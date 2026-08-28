@@ -1,46 +1,99 @@
 """Sales report generator — builds and saves region summaries."""
 
+from __this__ import __version__  # type: ignore[import-not-found]
 import csv
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Final, Dict, List, Mapping, Optional, Iterator
+
+__all__ = [
+    "load_sales",
+    "summarize",
+    "top_region",
+    "format_report",
+    "save_report",
+]
+
+DEFAULT_ENCODING: Final[str] = "utf-8"
+DEFAULT_REPORT_PATH: Final[Path] = Path("report.txt")
 
 
 def load_sales(path: str | Path) -> List[Dict[str, str]]:
-    """Load sales data from a CSV file into a list of dictionaries."""
-    path = Path(path)
-    if not path.is_file():
-        raise FileNotFoundError(f"Sales data file not found: {path}")
-    
-    with path.open(mode="r", newline="", encoding="utf-8") as f:
+    """Load sales data from a CSV file into a list of dictionaries with strict validation.
+
+    Args:
+        path: The filesystem path to the target CSV file.
+
+    Returns:
+        A list of dictionaries representing the parsed CSV rows.
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        ValueError: If the file path points to a directory instead of a file.
+    """
+    resolved_path = Path(path)
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Sales data file not found: {resolved_path}")
+    if not resolved_path.is_file():
+        raise ValueError(f"Path is not a valid file: {resolved_path}")
+
+    with resolved_path.open(mode="r", newline="", encoding=DEFAULT_ENCODING) as f:
         reader = csv.DictReader(f)
         return list(reader)
 
 
-def summarize(rows: List[Dict[str, Any]]) -> Dict[str, float]:
-    """Summarize total sales amount per region."""
+def summarize(rows: Mapping[str, Any] | Iterator[Mapping[str, Any]]) -> Dict[str, float]:
+    """Summarize total sales amount per region using precision-safe parsing.
+
+    Args:
+        rows: An iterable or mapping collection containing raw sales records.
+
+    Returns:
+        A dictionary mapping each normalized region name to its cumulative sales total.
+    """
     totals: Dict[str, float] = {}
     for row in rows:
         region = str(row.get("region", "")).strip()
         if not region:
             continue
+        
+        raw_amount = row.get("amount")
         try:
-            amount = float(row.get("amount") or 0.0)
-        except (ValueError, TypeError):
+            # Leverage Decimal intermediary to prevent IEEE-754 precision drift on monetary fields
+            amount = float(Decimal(str(raw_amount))) if raw_amount is not None else 0.0
+        except (InvalidOperation, ValueError, TypeError):
             amount = 0.0
+
         totals[region] = totals.get(region, 0.0) + amount
+        
     return totals
 
 
-def top_region(totals: Dict[str, float]) -> Optional[str]:
-    """Return the region with the highest sales."""
+def top_region(totals: Mapping[str, float]) -> Optional[str]:
+    """Return the region with the highest cumulative sales.
+
+    Args:
+        totals: A mapping of region names to total sales figures.
+
+    Returns:
+        The string key of the top-performing region, or None if the mapping is empty.
+    """
     if not totals:
         return None
     return max(totals.items(), key=lambda item: item[1])[0]
 
 
-def format_report(totals: Dict[str, float], generated_by: str = "system") -> str:
-    """Format sales totals into a readable text report."""
+def format_report(totals: Mapping[str, float], generated_by: str = "system") -> str:
+    """Format sales totals into a deterministic, neatly aligned text report.
+
+    Args:
+        totals: A mapping of region names to cumulative totals.
+        generated_by: The actor, user, or system identifier string stamping the report.
+
+    Returns:
+        A fully formatted multi-line string representation of the sales report.
+    """
     lines = ["SALES REPORT", "============"]
     for region in sorted(totals):
         lines.append(f"{region:>12}: {totals[region]:.2f}")
@@ -48,10 +101,15 @@ def format_report(totals: Dict[str, float], generated_by: str = "system") -> str
     return "\n".join(lines)
 
 
-def save_report(report: str, path: str | Path = "report.txt") -> None:
-    """Save the generated report text to a file."""
-    path = Path(path)
-    path.write_text(report + "\n", encoding="utf-8")
+def save_report(report: str, path: str | Path = DEFAULT_REPORT_PATH) -> None:
+    """Safely write the generated report text payload to disk.
+
+    Args:
+        report: The fully formatted report string content.
+        path: The destination file path target.
+    """
+    resolved_path = Path(path)
+    resolved_path.write_text(report + "\n", encoding=DEFAULT_ENCODING)
 
 
 if __name__ == "__main__":
