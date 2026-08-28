@@ -1,4 +1,3 @@
-@@@START
 """High-performance sorting and searching utilities with strict type-safety and robust error handling."""
 
 from __future__ import annotations
