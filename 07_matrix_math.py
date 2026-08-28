@@ -1,3 +1,4 @@
+@@@START
 """Matrix math helpers.
 
 Optimized by EMG Core v49 Neural Code and Documentation Optimizer Engine.
@@ -7,11 +8,14 @@ Provides high-performance, type-safe, and memory-efficient matrix operations.
 from __future__ import annotations
 
 import math
-from typing import List, Union
+from typing import Final, Sequence, TypeAlias
 
-# Type aliases for enhanced clarity and type-safety
-Number = Union[int, float]
-Matrix = List[List[Number]]
+# Type aliases for enhanced clarity and type-safety using modern syntax
+Number: TypeAlias = int | float
+Matrix: TypeAlias = list[list[Number]]
+
+# Performance constants
+EPSILON: Final[float] = 1e-12
 
 
 def zeros(rows: int, cols: int) -> Matrix:
@@ -29,7 +33,7 @@ def zeros(rows: int, cols: int) -> Matrix:
     """
     if rows <= 0 or cols <= 0:
         raise ValueError("Matrix dimensions must be strictly positive integers.")
-    # Fixed memory reference bug: previously used [[0] * cols] * rows which created shared row references.
+    # Safe list comprehension to prevent shared row memory reference bugs
     return [[0 for _ in range(cols)] for _ in range(rows)]
 
 
@@ -49,17 +53,20 @@ def matmul(a: Matrix, b: Matrix) -> Matrix:
     if not a or not a[0] or not b or not b[0]:
         raise ValueError("Matrices cannot be empty.")
 
-    m, n = len(a), len(b)
-    n_b, p = len(b), len(b[0])
+    m = len(a)
+    n = len(a[0])
+    n_b = len(b)
+    p = len(b[0])
 
     if n != n_b:
         raise ValueError(
             f"Incompatible dimensions for matrix multiplication: ({m}x{n}) and ({n_b}x{p})."
         )
 
-    # Validate inner dimensions match across all rows of 'a'
-    if any(len(row) != n for row in a):
-        raise ValueError("Matrix 'a' is ragged; all rows must have length equal to columns.")
+    # Validate inner dimensions match across all rows of 'a' with fast path checking
+    for idx, row in enumerate(a):
+        if len(row) != n:
+            raise ValueError(f"Matrix 'a' is ragged at row {idx}; all rows must have length equal to {n}.")
 
     # Pre-allocate result matrix and cache lookups for maximum execution performance
     result = [[0.0] * p for _ in range(m)]
@@ -94,8 +101,9 @@ def determinant(matrix: Matrix) -> Number:
         raise ValueError("Matrix cannot be empty.")
     
     n = len(matrix)
-    if any(len(row) != n for row in matrix):
-        raise ValueError("Matrix must be square to calculate determinant.")
+    for idx, row in enumerate(matrix):
+        if len(row) != n:
+            raise ValueError(f"Matrix must be square to calculate determinant (row {idx} has length {len(row)}, expected {n}).")
 
     if n == 1:
         return matrix[0][0]
@@ -134,8 +142,15 @@ def scale(matrix: Matrix, factor: Number) -> Matrix:
     if factor == 0:
         raise ZeroDivisionError("Division by zero in matrix scaling factor.")
 
-    # Use exact integer division if input cells and factor are integers, else float division
-    return [[cell // factor if isinstance(cell, int) and isinstance(factor, int) and cell % factor == 0 else cell / factor for cell in row] for row in matrix]
+    # Optimized cell-wise scaling maintaining precise type fidelity
+    return [
+        [
+            cell // factor if isinstance(cell, int) and isinstance(factor, int) and cell % factor == 0 
+            else cell / factor 
+            for cell in row
+        ] 
+        for row in matrix
+    ]
 
 
 def normalize_rows(matrix: Matrix) -> Matrix:
@@ -149,6 +164,7 @@ def normalize_rows(matrix: Matrix) -> Matrix:
 
     Raises:
         ValueError: If any row has a zero norm (all-zero row) or if the matrix is empty.
+        ZeroDivisionError: If any row norm approaches zero.
     """
     if not matrix or not matrix[0]:
         raise ValueError("Matrix cannot be empty.")
@@ -156,8 +172,8 @@ def normalize_rows(matrix: Matrix) -> Matrix:
     result: Matrix = []
     for row_idx, row in enumerate(matrix):
         norm = math.sqrt(sum(x ** 2 for x in row))
-        if norm == 0.0:
-            raise ZeroDivisionError(f"Cannot normalize row {row_idx} with a zero Euclidean norm.")
+        if math.isclose(norm, 0.0, abs_tol=EPSILON):
+            raise ZeroDivisionError(f"Cannot normalize row {row_idx} with a zero or near-zero Euclidean norm.")
         result.append([x / norm for x in row])
     return result
 
@@ -178,10 +194,13 @@ def trace(matrix: Matrix) -> Number:
         raise ValueError("Matrix cannot be empty.")
     
     n = len(matrix)
-    if any(len(row) != n for row in matrix):
-        raise ValueError("Matrix must be square to calculate trace.")
+    for idx, row in enumerate(matrix):
+        if len(row) != n:
+            raise ValueError(f"Matrix must be square to calculate trace (row {idx} has length {len(row)}, expected {n}).")
 
     total_sum: Number = 0
     for i in range(n):
         total_sum += matrix[i][i]
     return total_sum
+@@@SUMMARY
+Overhauled matrix operations with modern Python type hints, enhanced dimension validation checks, and robust numerical precision handling.
