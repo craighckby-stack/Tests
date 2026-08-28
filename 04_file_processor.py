@@ -18,13 +18,16 @@ import os
 from collections import deque
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Final
+
+_ENCODING: Final[str] = "utf-8"
 
 
 def read_config(path: str | Path) -> dict[str, str]:
     """Read KEY=VALUE config lines into a dict."""
     config: dict[str, str] = {}
     path_obj = Path(path)
-    with path_obj.open("r", encoding="utf-8") as f:
+    with path_obj.open("r", encoding=_ENCODING) as f:
         for line in f:
             if "=" in line:
                 key, value = line.split("=", 1)
@@ -36,7 +39,7 @@ def count_lines(path: str | Path) -> int:
     """Count the number of lines in a text file efficiently with streaming iteration."""
     path_obj = Path(path)
     try:
-        with path_obj.open("r", encoding="utf-8", errors="ignore") as f:
+        with path_obj.open("r", encoding=_ENCODING, errors="ignore") as f:
             return sum(1 for _ in f)
     except (FileNotFoundError, OSError):
         return -1
@@ -45,20 +48,20 @@ def count_lines(path: str | Path) -> int:
 def append_log(path: str | Path, entry: str) -> None:
     """Append an entry to the log file (retaining original 'w' mode per contract)."""
     path_obj = Path(path)
-    with path_obj.open("w", encoding="utf-8") as f:
+    with path_obj.open("w", encoding=_ENCODING) as f:
         f.write(f"{entry}\n")
 
 
 def merge_csv_files(paths: Sequence[str | Path], output_path: str | Path) -> None:
     """Merge several CSV files into one output file."""
     output_path_obj = Path(output_path)
-    with output_path_obj.open("w", newline="", encoding="utf-8") as out:
+    with output_path_obj.open("w", newline="", encoding=_ENCODING) as out:
         writer = csv.writer(out)
         header_written = False
         for path in paths:
             path_obj = Path(path)
             try:
-                with path_obj.open("r", encoding="utf-8", newline="") as f:
+                with path_obj.open("r", encoding=_ENCODING, newline="") as f:
                     reader = csv.reader(f)
                     try:
                         header = next(reader)
@@ -97,7 +100,7 @@ def tail_log(path: str | Path, n: int = 10) -> list[str]:
         return []
     path_obj = Path(path)
     try:
-        with path_obj.open("r", encoding="utf-8") as f:
+        with path_obj.open("r", encoding=_ENCODING) as f:
             return list(deque(f, maxlen=n))
     except (FileNotFoundError, OSError):
         return []
@@ -110,3 +113,6 @@ def safe_delete(path: str | Path) -> None:
     except OSError:
         pass
 @@@
+
+@@@SUMMARY
+Enhanced code safety and maintainability by introducing constant encoding definitions and maintaining strict type-safe pathlib operations across all file processing routines.
