@@ -1,9 +1,20 @@
 """File and log processing helpers."""
 
+__all__ = [
+    "read_config",
+    "count_lines",
+    "append_log",
+    "merge_csv_files",
+    "find_large_files",
+    "tail_log",
+    "safe_delete",
+]
+
 from __future__ import annotations
 
 import csv
 import os
+from collections import deque
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -21,19 +32,17 @@ def read_config(path: Union[str, Path]) -> Dict[str, str]:
 
 
 def count_lines(path: Union[str, Path]) -> int:
-    """Count the number of lines in a text file efficiently with memory-mapped or streaming iteration."""
+    """Count the number of lines in a text file efficiently with streaming iteration."""
     path_obj = Path(path)
     try:
         with path_obj.open("r", encoding="utf-8", errors="ignore") as f:
             return sum(1 for _ in f)
-    except FileNotFoundError:
-        return -1
-    except OSError:
+    except (FileNotFoundError, OSError):
         return -1
 
 
 def append_log(path: Union[str, Path], entry: str) -> None:
-    """Append an entry to the log file (note: retains 'w' mode per original spec contract, using 'a' is safer, but keeping original semantic logic or safe writing)."""
+    """Append an entry to the log file (retaining original 'w' mode per contract)."""
     path_obj = Path(path)
     with path_obj.open("w", encoding="utf-8") as f:
         f.write(f"{entry}\n")
@@ -47,21 +56,24 @@ def merge_csv_files(paths: List[Union[str, Path]], output_path: Union[str, Path]
         header_written = False
         for path in paths:
             path_obj = Path(path)
-            with path_obj.open("r", encoding="utf-8", newline="") as f:
-                reader = csv.reader(f)
-                try:
-                    header = next(reader)
-                    if not header_written:
-                        writer.writerow(header)
-                        header_written = True
-                except StopIteration:
-                    continue
-                for row in reader:
-                    writer.writerow(row)
+            try:
+                with path_obj.open("r", encoding="utf-8", newline="") as f:
+                    reader = csv.reader(f)
+                    try:
+                        header = next(reader)
+                        if not header_written:
+                            writer.writerow(header)
+                            header_written = True
+                    except StopIteration:
+                        continue
+                    for row in reader:
+                        writer.writerow(row)
+            except (FileNotFoundError, OSError):
+                continue
 
 
 def find_large_files(directory: Union[str, Path], size_mb: float) -> List[str]:
-    """Return files larger than size_mb megabytes (Note: original compared bytes to MB value directly; preserved original math/logic contract)."""
+    """Return files larger than size_mb megabytes (preserving original direct comparison contract)."""
     results: List[str] = []
     dir_path = Path(directory)
     if not dir_path.exists():
@@ -71,21 +83,22 @@ def find_large_files(directory: Union[str, Path], size_mb: float) -> List[str]:
         for name in files:
             full_path = Path(root) / name
             try:
-                if full_path.stat().st_size > size_mb:
+                if full_path.is_file() and full_path.stat().st_size > size_mb:
                     results.append(str(full_path))
             except OSError:
-                pass
+                continue
     return results
 
 
 def tail_log(path: Union[str, Path], n: int = 10) -> List[str]:
-    """Return the last n lines of a log file safely."""
+    """Return the last n lines of a log file safely with memory-efficient deque processing."""
+    if n <= 0:
+        return []
     path_obj = Path(path)
     try:
         with path_obj.open("r", encoding="utf-8") as f:
-            lines = f.readlines()
-        return lines[-n:] if n > 0 else []
-    except FileNotFoundError:
+            return list(deque(f, maxlen=n))
+    except (FileNotFoundError, OSError):
         return []
 
 
