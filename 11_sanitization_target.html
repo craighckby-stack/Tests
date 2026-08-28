@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.internal-system.com;">
     <title>Customer Support Portal</title>
     
-    <script>
+    <script nonce="EMG-SECURE-NONCE">
         /**
          * @typedef {Object} AppConfig
          * @readonly
@@ -55,7 +55,7 @@
         </main>
     </div>
 
-    <script>
+    <script nonce="EMG-SECURE-NONCE">
         /**
          * Fetches customer data securely using dynamic runtime configuration, strict type validation, and robust error management.
          * @param {string} customerId 
