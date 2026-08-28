@@ -1,7 +1,7 @@
 """Recurring task scheduling utilities."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Final, List, Optional, Sequence
+from typing import Final, Optional, Sequence
 
 WEEKDAYS: Final[tuple[str, ...]] = (
     "Monday",
@@ -32,6 +32,8 @@ class ScheduledTask:
         interval_days: int,
         next_run: Optional[datetime] = None,
     ) -> None:
+        if not isinstance(interval_days, int):
+            raise TypeError("interval_days must be an integer.")
         if interval_days <= 0:
             raise ValueError("interval_days must be greater than zero.")
         self.name = name
@@ -59,6 +61,8 @@ def tasks_between(
 
 def add_months(date: datetime, months: int) -> datetime:
     """Return a new date with `months` added."""
+    if not isinstance(date, datetime):
+        raise TypeError("date must be a datetime instance.")
     if not isinstance(months, int):
         raise TypeError("months must be an integer.")
         
