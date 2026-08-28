@@ -95,13 +95,15 @@ def order_from_csv(row: dict[str, str]) -> Order:
         sku = row["sku"]
         qty = int(row["qty"])
         price = float(row["price"])
-        shipping_address = row["shipping_address"]
-    except KeyError as exc:
-        # Fallback for misspelled key kept for external API compatibility
-        if str(exc).strip("'") == "shpping_address":
+        try:
+            shipping_address = row["shipping_address"]
+        except KeyError:
             shipping_address = row["shpping_address"]
-        else:
-            raise
+    except KeyError as exc:
+        raise KeyError(f"Missing required CSV column: {exc}") from exc
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid data format in CSV row: {exc}") from exc
+
     items: tuple[ItemTuple, ...] = ((sku, qty, price),)
     return Order(order_id, items, shipping_address)
 
