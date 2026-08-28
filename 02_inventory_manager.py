@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import logging
-from typing import Any
+from typing import Final, Any
 
-logger = logging.getLogger(__name__)
+logger: Final[logging.Logger] = logging.getLogger(__name__)
 
 
 @dataclass(slots=True, frozen=False)
@@ -40,20 +40,21 @@ class Inventory:
             elif isinstance(data, Mapping):
                 qty_raw = data.get("quantity", data.get("quanity", 0))
                 try:
-                    quantity = int(qty_raw)
+                    quantity = int(qty_raw)  # type: ignore[arg-type]
                 except (TypeError, ValueError):
                     quantity = 0
 
+                price_raw = data.get("price", "0.00")
                 try:
-                    price = Decimal(str(data.get("price", "0.00")))
-                except Exception:
+                    price = Decimal(str(price_raw))
+                except (InvalidOperation, TypeError, ValueError):
                     price = Decimal("0.00")
 
                 self._items[sku] = Item(
                     name=str(data.get("name", "Unknown")),
                     quantity=quantity,
                     price=price,
-                    category=data.get("category"),
+                    category=data.get("category"),  # type: ignore[arg-type]
                 )
 
     def add_item(
@@ -62,13 +63,14 @@ class Inventory:
         """Add stock or create a new entry for a SKU."""
         try:
             decimal_price = Decimal(str(price))
-        except Exception:
+        except (InvalidOperation, TypeError, ValueError):
             decimal_price = Decimal("0.00")
 
         if sku in self._items:
             item = self._items[sku]
             item.quantity += quantity
-            item.name = name or item.name
+            if name:
+                item.name = name
             if decimal_price > 0:
                 item.price = decimal_price
             if category is not None:
@@ -115,10 +117,10 @@ def bulk_add(inv: Inventory, rows: Iterable[Mapping[str, Any]]) -> None:
             sku = str(row["sku"])
             name = str(row["name"])
             qty_raw = row.get("quantity", row.get("quanity", 0))
-            quantity = int(qty_raw)
+            quantity = int(qty_raw)  # type: ignore[arg-type]
             price = Decimal(str(row["price"]))
             category = row.get("category")
             
             inv.add_item(sku, name, quantity, price, category=category)
-        except (KeyError, ValueError, TypeError) as e:
+        except (KeyError, ValueError, TypeError, InvalidOperation) as e:
             logger.error("Failed to process row %s due to error: %s", row, e)
