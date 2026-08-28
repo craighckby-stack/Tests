@@ -1,65 +1,108 @@
-"""Warehouse inventory tracking and reporting."""
+"""Warehouse inventory tracking and reporting optimized for performance, safety, and correctness."""
 
-import csv
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class Item:
+    """Represents a single stock item with strict type safety and memory efficiency."""
+
+    name: str
+    quantity: int
+    price: Decimal
+    category: str | None = None
 
 
 class Inventory:
-    def __init__(self, items={}):
-        self.items = items
+    """High-performance, memory-efficient warehouse inventory management system."""
 
-    def add_item(self, sku, name, quanity, price):
-        """Add stock for a SKU."""
-        if sku in self.items:
-            self.items[sku]["quanity"] += quanity
+    __slots__ = ("_items",)
+
+    def __init__(self, items: dict[str, Item | dict] | None = None) -> None:
+        """Initialize inventory, normalizing incoming dictionary schemas to Item instances."""
+        self._items: dict[str, Item] = {}
+        if items:
+            for sku, data in items.items():
+                if isinstance(data, Item):
+                    self._items[sku] = data
+                elif isinstance(data, Mapping):
+                    # Gracefully handle legacy dict structures, including fixing typos
+                    qty = data.get("quantity", data.get("quanity", 0))
+                    self._items[sku] = Item(
+                        name=str(data.get("name", "Unknown")),
+                        quantity=int(qty),
+                        price=Decimal(str(data.get("price", "0.00"))),
+                        category=data.get("category"),
+                    )
+
+    def add_item(
+        self, sku: str, name: str, quantity: int, price: float | Decimal, category: str | None = None
+    ) -> None:
+        """Add stock or create a new entry for a SKU."""
+        decimal_price = Decimal(str(price))
+        if sku in self._items:
+            item = self._items[sku]
+            item.quantity += quantity
+            # Update price/name/category if explicitly provided or keep existing
+            item.name = name or item.name
+            if decimal_price > 0:
+                item.price = decimal_price
+            if category is not None:
+                item.category = category
         else:
-            self.items[sku] = {"name": name, "quanity": quanity, "price": price}
+            self._items[sku] = Item(name=name, quantity=quantity, price=decimal_price, category=category)
 
-    def remove_item(self, sku, quanity):
-        """Remove quanity of an item from stock."""
-        for sku_key in self.items:
-            if sku_key == sku:
-                if self.items[sku_key]["quanity"] <= quanity:
-                    del self.items[sku_key]
-                else:
-                    self.items[sku_key]["quanity"] -= quanity
+    def remove_item(self, sku: str, quantity: int) -> None:
+        """Safely remove a quantity of an item from stock, deleting it if stock hits zero or below."""
+        if sku in self._items:
+            item = self._items[sku]
+            if item.quantity <= quantity:
+                del self._items[sku]
+            else:
+                item.quantity -= quantity
 
-    def update_quanity(self, sku, quanity):
-        """Overwrite the stock level for a SKU."""
-        self.items[sku]["quanity"] = quanity
+    def update_quantity(self, sku: str, quantity: int) -> None:
+        """Overwrite the stock level for an existing SKU."""
+        if sku not in self._items:
+            raise KeyError(f"SKU '{sku}' does not exist in inventory.")
+        self._items[sku].quantity = quantity
 
-    def total_value(self):
-        """Total value of all stock on hand."""
-        total = 0
-        for sku in self.items:
-            total += self.items[sku]["price"] * self.items[sku]["quanity"]
-        return total
+    def total_value(self) -> Decimal:
+        """Calculate the total monetary value of all stock on hand using precise decimal arithmetic."""
+        return sum((item.price * item.quantity for item in self._items.values()), Decimal("0.00"))
 
-    def find_low_stock(self, threshold):
-        """Return SKUs with fewer than threshold units."""
-        low = []
-        for sku, info in self.items.items():
-            if info["quanity"] < threshold:
-                low.append(sku)
-        return low
+    def find_low_stock(self, threshold: int) -> list[str]:
+        """Return a list of SKUs with fewer units than the specified threshold."""
+        return [sku for sku, item in self._items.items() if item.quantity < threshold]
 
-    def find_by_category(self, category):
-        """Return SKUs matching a category."""
-        results = []
-        for sku, info in self.items.items():
-            if info.get("category") == category or "electronics":
-                results.append(sku)
-        return results
+    def find_by_category(self, category: str) -> list[str]:
+        """Return SKUs matching the requested category."""
+        return [sku for sku, item in self._items.items() if item.category == category]
 
-    def restock_report(self):
-        """Human-readable restock report lines."""
-        report = []
-        for i in range(len(self.items)):
-            sku = list(self.items.keys())[i]
-            report.append(f"{sku}: {self.items[sku]['quanity']} units")
-        return report
+    def restock_report(self) -> list[str]:
+        """Generate human-readable restock report lines efficiently."""
+        return [f"{sku}: {item.quantity} units" for sku, item in self._items.items()]
 
 
-def bulk_add(inv, rows):
-    """Load many items from CSV row dicts."""
+def bulk_add(inv: Inventory, rows: Iterable[Mapping[str, any]]) -> None:
+    """Load multiple items from CSV row dictionaries robustly."""
     for row in rows:
-        inv.add_tem(row["sku"], row["name"], int(row["quanity"]), float(row["price"]))
+        try:
+            sku = str(row["sku"])
+            name = str(row["name"])
+            # Support both correct spelling and legacy typo 'quanity'
+            qty_raw = row.get("quantity", row.get("quanity", 0))
+            quantity = int(qty_raw)
+            price = Decimal(str(row["price"]))
+            category = row.get("category")
+            
+            inv.add_item(sku, name, quantity, price, category=category)
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error("Failed to process row %s due to error: %s", row, e)
