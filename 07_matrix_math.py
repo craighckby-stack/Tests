@@ -8,7 +8,7 @@ Provides high-performance, type-safe, and memory-efficient matrix operations.
 from __future__ import annotations
 
 import math
-from typing import Final, Sequence, TypeAlias
+from typing import Final, TypeAlias
 
 # Type aliases for enhanced clarity and type-safety using modern syntax
 Number: TypeAlias = int | float
@@ -203,4 +203,4 @@ def trace(matrix: Matrix) -> Number:
         total_sum += matrix[i][i]
     return total_sum
 @@@SUMMARY
-Overhauled matrix operations with modern Python type hints, enhanced dimension validation checks, and robust numerical precision handling.
+Refined and optimized matrix math library with strict type-safety, robust dimension checking, and enhanced arithmetic execution paths.
