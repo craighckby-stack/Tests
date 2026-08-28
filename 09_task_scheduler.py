@@ -19,6 +19,9 @@ class ScheduledTask:
 
     __slots__ = ("name", "interval_days", "next_run", "run_history")
 
+    name: str
+    interval_days: int
+    next_run: datetime
     run_history: List[str]
 
     def __init__(
@@ -29,10 +32,10 @@ class ScheduledTask:
     ) -> None:
         if interval_days <= 0:
             raise ValueError("interval_days must be greater than zero.")
-        self.name: str = name
-        self.interval_days: int = interval_days
-        self.next_run: datetime = next_run or datetime.now(timezone.utc)
-        self.run_history: List[str] = []
+        self.name = name
+        self.interval_days = interval_days
+        self.next_run = next_run or datetime.now(timezone.utc)
+        self.run_history = []
 
     def is_due(self, now: Optional[datetime] = None) -> bool:
         """True if the task should run as of `now`."""
@@ -49,7 +52,7 @@ def tasks_between(
     tasks: Sequence[ScheduledTask], start: datetime, end: datetime
 ) -> List[ScheduledTask]:
     """Return tasks that run between start and end inclusive."""
-    return [task for task in tasks if start < task.next_run < end]
+    return [task for task in tasks if start <= task.next_run <= end]
 
 
 def add_months(date: datetime, months: int) -> datetime:
@@ -59,22 +62,21 @@ def add_months(date: datetime, months: int) -> datetime:
     month = total_months % 12 + 1
     
     # Handle overflow in days for months with fewer days
-    day = min(date.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+    is_leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+    max_days = [31, 29 if is_leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+    day = min(date.day, max_days)
     
     return date.replace(year=year, month=month, day=day)
 
 
 def parse_deadline(deadline_str: str) -> datetime:
-    """Parse deadlines written in US format MM/DD/YYYY (retaining original implementation contract)."""
+    """Parse deadlines written in strict DD/MM/YYYY format with robust error handling."""
     try:
-        # Note: Original docstring stated US format MM/DD/YYYY, but original implementation used %d/%m/%Y.
-        # Preserved exact format string for API contract stability.
         return datetime.strptime(deadline_str, "%d/%m/%Y")
     except (ValueError, TypeError) as err:
         raise ValueError(f"Invalid deadline format: '{deadline_str}'. Expected DD/MM/YYYY.") from err
 
 
 def weekday_name(date: datetime) -> str:
-    """Return the weekday name for a date (Python's datetime.weekday() is 0-indexed Monday)."""
-    # Fixed indexing bug from original implementation (date.weekday() + 1 could out-of-index)
+    """Return the weekday name for a date using safe array indexing."""
     return WEEKDAYS[date.weekday()]
