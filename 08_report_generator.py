@@ -6,7 +6,7 @@ import csv
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Final, Iterable, Iterator, Mapping, Sequence
+from typing import Final, Iterable, Iterator, Mapping, Sequence
 
 __all__ = [
     "load_sales",
@@ -44,7 +44,7 @@ def load_sales(path: str | Path) -> list[dict[str, str]]:
         return list(reader)
 
 
-def summarize(rows: Iterable[Mapping[str, Any]]) -> dict[str, float]:
+def summarize(rows: Iterable[Mapping[str, str | None]]) -> dict[str, float]:
     """Summarize total sales amount per region using precision-safe parsing.
 
     Args:
@@ -55,7 +55,7 @@ def summarize(rows: Iterable[Mapping[str, Any]]) -> dict[str, float]:
     """
     totals: dict[str, float] = {}
     for row in rows:
-        region = str(row.get("region", "")).strip()
+        region = str(row.get("region") or "").strip()
         if not region:
             continue
         
