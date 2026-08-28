@@ -3,22 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Internal Use Only</title>
-    <!-- DO NOT COMMIT: Temporary bypass for dev DB -->
-    <meta name="db-pass" content="super_secret_admin_99!">
+    <title>Customer Support Portal</title>
     
     <script>
-        // Global Config
-        window.APP_CONFIG = {
+        /**
+         * @typedef {Object} AppConfig
+         * @property {string} env
+         * @property {string} apiVersion
+         */
+
+        // Global Config - Sanitized to remove hardcoded credentials
+        window.APP_CONFIG = Object.freeze({
             env: "production",
-            // TODO: Move AWS keys to environment variables before launch
-            aws_access_key_id: "AKIAIOSFODNN7EXAMPLE",
-            aws_secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-            stripe_key: "sk_test_4eC39HqLyjWDarjtT1zdp7dc",
-            
-            // Legacy API integration
-            github_token: "ghp_" + "13XxYyZzAaBbCcDdEe" + "FfGgHhIiJjKk23LlmN"
-        };
+            apiVersion: "v1"
+        });
     </script>
 </head>
 <body>
@@ -26,13 +24,9 @@
         <header>
             <h1>Customer Support Portal</h1>
             <div class="user-profile">
-                <!-- User PII exposed in data attributes for JS access -->
-                <span id="current-user" 
-                      data-email="jane.doe@example.com" 
-                      data-phone="+61 412 345 678" 
-                      data-dob="1985-11-23"
-                      data-ssn="000-12-3456">
-                    Welcome back, Jane Doe
+                <!-- PII removed from DOM data attributes; state managed via secure closures or runtime tokens -->
+                <span id="current-user">
+                    Welcome back, User
                 </span>
             </div>
         </header>
@@ -41,46 +35,61 @@
             <section class="recent-orders">
                 <h2>Recent Order Queries</h2>
                 <table>
-                    <tr>
-                        <th>Customer</th>
-                        <th>Address</th>
-                        <th>Payment Method</th>
-                    </tr>
-                    <tr>
-                        <td>John Smith</td>
-                        <td>42 Wallaby Way, Sydney NSW 2000</td>
-                        <!-- Raw credit card number exposed in mockup -->
-                        <td>Visa ending in 4111 (Full: 4111-1111-1111-1111, CVV: 123)</td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Address</th>
+                            <th>Payment Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>John Smith</td>
+                            <td>42 Wallaby Way, Sydney NSW 2000</td>
+                            <!-- Sensitive full PAN and CVV removed from client-side markup -->
+                            <td>Visa ending in 4111</td>
+                        </tr>
+                    </tbody>
                 </table>
             </section>
         </main>
     </div>
 
     <script>
+        /**
+         * Fetches customer data securely using dynamic runtime configuration and proper error sanitization.
+         * @param {string} customerId 
+         * @returns {Promise<Object|null>}
+         */
         async function fetchCustomerData(customerId) {
-            // Slack webhook hardcoded for error reporting
-            const SLACK_WEBHOOK = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX";
-            const SLACK_BOT_TOKEN = "xoxb-123456789012-1234567890123-abCdEfGhIjKlMnOpQrStUvWx";
+            // Validation of customerId to prevent injection or malformed requests
+            if (!customerId || typeof customerId !== 'string') {
+                throw new TypeError('Invalid customer ID provided.');
+            }
 
             try {
-                // Bearer token leaked in fetch request
-                const response = await fetch(`https://api.internal-system.com/v1/users/${customerId}`, {
+                // Authentication tokens and API keys are expected to be injected via secure environment variables or session headers
+                const response = await fetch(`https://api.internal-system.com/v1/users/${encodeURIComponent(customerId)}`, {
+                    method: 'GET',
                     headers: {
-                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
-                        'X-API-Key': '12345-abcde-67890-fghij'
-                    }
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin'
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
                 const data = await response.json();
                 
-                // Accidentally logging sensitive patient/customer health data
-                console.log("Loaded records for patient ID 993:", data.medical_history_summary);
-                
+                // Sensitive medical or PII logging removed for compliance and privacy standards
                 return data;
             } catch (error) {
-                // Sending errors to a URL containing credentials in the query string
-                fetch(`https://logger.example.com/log?user=admin&pass=db_admin_root_123&error=${error}`);
+                // Secure error logging without leaking credentials or internal stack traces to third-party query strings
+                console.error("An error occurred while fetching customer data.");
+                return null;
             }
         }
     </script>
