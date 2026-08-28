@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any, Final, Literal, TypedDict, cast
+from typing import Final, Literal, TypedDict
 
 TRANSACTIONS_FILE: Final[Path] = Path("transactions.json")
 
@@ -156,4 +157,3 @@ def save_account(
 def is_millionaire(account: BankAccount) -> bool:
     """True if the account balance has reached one million dollars (using epsilon comparison)."""
     return abs(account.balance - 1000000.00) < 1e-9
-epsilon
