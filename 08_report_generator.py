@@ -1,11 +1,12 @@
 """Sales report generator — builds and saves region summaries."""
 
-from __this__ import __version__  # type: ignore[import-not-found]
+from __future__ import annotations
+
 import csv
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Final, Dict, List, Mapping, Optional, Iterator
+from typing import Any, Final, Iterable, Iterator, Mapping, Sequence
 
 __all__ = [
     "load_sales",
@@ -19,7 +20,7 @@ DEFAULT_ENCODING: Final[str] = "utf-8"
 DEFAULT_REPORT_PATH: Final[Path] = Path("report.txt")
 
 
-def load_sales(path: str | Path) -> List[Dict[str, str]]:
+def load_sales(path: str | Path) -> list[dict[str, str]]:
     """Load sales data from a CSV file into a list of dictionaries with strict validation.
 
     Args:
@@ -43,16 +44,16 @@ def load_sales(path: str | Path) -> List[Dict[str, str]]:
         return list(reader)
 
 
-def summarize(rows: Mapping[str, Any] | Iterator[Mapping[str, Any]]) -> Dict[str, float]:
+def summarize(rows: Iterable[Mapping[str, Any]]) -> dict[str, float]:
     """Summarize total sales amount per region using precision-safe parsing.
 
     Args:
-        rows: An iterable or mapping collection containing raw sales records.
+        rows: An iterable collection containing raw sales records.
 
     Returns:
         A dictionary mapping each normalized region name to its cumulative sales total.
     """
-    totals: Dict[str, float] = {}
+    totals: dict[str, float] = {}
     for row in rows:
         region = str(row.get("region", "")).strip()
         if not region:
@@ -70,7 +71,7 @@ def summarize(rows: Mapping[str, Any] | Iterator[Mapping[str, Any]]) -> Dict[str
     return totals
 
 
-def top_region(totals: Mapping[str, float]) -> Optional[str]:
+def top_region(totals: Mapping[str, float]) -> str | None:
     """Return the region with the highest cumulative sales.
 
     Args:
