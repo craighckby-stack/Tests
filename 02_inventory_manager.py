@@ -50,11 +50,12 @@ class Inventory:
                 except (InvalidOperation, TypeError, ValueError):
                     price = Decimal("0.00")
 
+                category_raw = data.get("category")
                 self._items[sku] = Item(
                     name=str(data.get("name", "Unknown")),
                     quantity=quantity,
                     price=price,
-                    category=data.get("category"),  # type: ignore[arg-type]
+                    category=str(category_raw) if category_raw is not None else None,
                 )
 
     def add_item(
@@ -119,7 +120,8 @@ def bulk_add(inv: Inventory, rows: Iterable[Mapping[str, Any]]) -> None:
             qty_raw = row.get("quantity", row.get("quanity", 0))
             quantity = int(qty_raw)  # type: ignore[arg-type]
             price = Decimal(str(row["price"]))
-            category = row.get("category")
+            category_raw = row.get("category")
+            category = str(category_raw) if category_raw is not None else None
             
             inv.add_item(sku, name, quantity, price, category=category)
         except (KeyError, ValueError, TypeError, InvalidOperation) as e:
