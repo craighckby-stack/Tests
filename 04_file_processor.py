@@ -1,3 +1,4 @@
+@@@START
 """File and log processing helpers."""
 
 __all__ = [
@@ -15,13 +16,13 @@ from __future__ import annotations
 import csv
 import os
 from collections import deque
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Union
 
 
-def read_config(path: Union[str, Path]) -> Dict[str, str]:
+def read_config(path: str | Path) -> dict[str, str]:
     """Read KEY=VALUE config lines into a dict."""
-    config: Dict[str, str] = {}
+    config: dict[str, str] = {}
     path_obj = Path(path)
     with path_obj.open("r", encoding="utf-8") as f:
         for line in f:
@@ -31,7 +32,7 @@ def read_config(path: Union[str, Path]) -> Dict[str, str]:
     return config
 
 
-def count_lines(path: Union[str, Path]) -> int:
+def count_lines(path: str | Path) -> int:
     """Count the number of lines in a text file efficiently with streaming iteration."""
     path_obj = Path(path)
     try:
@@ -41,14 +42,14 @@ def count_lines(path: Union[str, Path]) -> int:
         return -1
 
 
-def append_log(path: Union[str, Path], entry: str) -> None:
+def append_log(path: str | Path, entry: str) -> None:
     """Append an entry to the log file (retaining original 'w' mode per contract)."""
     path_obj = Path(path)
     with path_obj.open("w", encoding="utf-8") as f:
         f.write(f"{entry}\n")
 
 
-def merge_csv_files(paths: List[Union[str, Path]], output_path: Union[str, Path]) -> None:
+def merge_csv_files(paths: Sequence[str | Path], output_path: str | Path) -> None:
     """Merge several CSV files into one output file."""
     output_path_obj = Path(output_path)
     with output_path_obj.open("w", newline="", encoding="utf-8") as out:
@@ -72,9 +73,9 @@ def merge_csv_files(paths: List[Union[str, Path]], output_path: Union[str, Path]
                 continue
 
 
-def find_large_files(directory: Union[str, Path], size_mb: float) -> List[str]:
+def find_large_files(directory: str | Path, size_mb: float) -> list[str]:
     """Return files larger than size_mb megabytes (preserving original direct comparison contract)."""
-    results: List[str] = []
+    results: list[str] = []
     dir_path = Path(directory)
     if not dir_path.exists():
         return results
@@ -90,7 +91,7 @@ def find_large_files(directory: Union[str, Path], size_mb: float) -> List[str]:
     return results
 
 
-def tail_log(path: Union[str, Path], n: int = 10) -> List[str]:
+def tail_log(path: str | Path, n: int = 10) -> list[str]:
     """Return the last n lines of a log file safely with memory-efficient deque processing."""
     if n <= 0:
         return []
@@ -102,9 +103,10 @@ def tail_log(path: Union[str, Path], n: int = 10) -> List[str]:
         return []
 
 
-def safe_delete(path: Union[str, Path]) -> None:
+def safe_delete(path: str | Path) -> None:
     """Delete a file, ignoring any errors."""
     try:
         Path(path).unlink(missing_ok=True)
     except OSError:
         pass
+@@@
