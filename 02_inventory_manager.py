@@ -1,16 +1,19 @@
 """Warehouse inventory tracking and reporting optimized for performance, safety, and correctness."""
 
+__all__ = ["Item", "Inventory", "bulk_add"]
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=False)
 class Item:
     """Represents a single stock item with strict type safety and memory efficiency."""
 
@@ -25,32 +28,46 @@ class Inventory:
 
     __slots__ = ("_items",)
 
-    def __init__(self, items: dict[str, Item | dict] | None = None) -> None:
+    def __init__(self, items: Mapping[str, Item | Mapping[str, Any]] | None = None) -> None:
         """Initialize inventory, normalizing incoming dictionary schemas to Item instances."""
         self._items: dict[str, Item] = {}
-        if items:
-            for sku, data in items.items():
-                if isinstance(data, Item):
-                    self._items[sku] = data
-                elif isinstance(data, Mapping):
-                    # Gracefully handle legacy dict structures, including fixing typos
-                    qty = data.get("quantity", data.get("quanity", 0))
-                    self._items[sku] = Item(
-                        name=str(data.get("name", "Unknown")),
-                        quantity=int(qty),
-                        price=Decimal(str(data.get("price", "0.00"))),
-                        category=data.get("category"),
-                    )
+        if not items:
+            return
+
+        for sku, data in items.items():
+            if isinstance(data, Item):
+                self._items[sku] = data
+            elif isinstance(data, Mapping):
+                qty_raw = data.get("quantity", data.get("quanity", 0))
+                try:
+                    quantity = int(qty_raw)
+                except (TypeError, ValueError):
+                    quantity = 0
+
+                try:
+                    price = Decimal(str(data.get("price", "0.00")))
+                except Exception:
+                    price = Decimal("0.00")
+
+                self._items[sku] = Item(
+                    name=str(data.get("name", "Unknown")),
+                    quantity=quantity,
+                    price=price,
+                    category=data.get("category"),
+                )
 
     def add_item(
         self, sku: str, name: str, quantity: int, price: float | Decimal, category: str | None = None
     ) -> None:
         """Add stock or create a new entry for a SKU."""
-        decimal_price = Decimal(str(price))
+        try:
+            decimal_price = Decimal(str(price))
+        except Exception:
+            decimal_price = Decimal("0.00")
+
         if sku in self._items:
             item = self._items[sku]
             item.quantity += quantity
-            # Update price/name/category if explicitly provided or keep existing
             item.name = name or item.name
             if decimal_price > 0:
                 item.price = decimal_price
@@ -61,8 +78,8 @@ class Inventory:
 
     def remove_item(self, sku: str, quantity: int) -> None:
         """Safely remove a quantity of an item from stock, deleting it if stock hits zero or below."""
-        if sku in self._items:
-            item = self._items[sku]
+        item = self._items.get(sku)
+        if item is not None:
             if item.quantity <= quantity:
                 del self._items[sku]
             else:
@@ -91,13 +108,12 @@ class Inventory:
         return [f"{sku}: {item.quantity} units" for sku, item in self._items.items()]
 
 
-def bulk_add(inv: Inventory, rows: Iterable[Mapping[str, any]]) -> None:
+def bulk_add(inv: Inventory, rows: Iterable[Mapping[str, Any]]) -> None:
     """Load multiple items from CSV row dictionaries robustly."""
     for row in rows:
         try:
             sku = str(row["sku"])
             name = str(row["name"])
-            # Support both correct spelling and legacy typo 'quanity'
             qty_raw = row.get("quantity", row.get("quanity", 0))
             quantity = int(qty_raw)
             price = Decimal(str(row["price"]))
