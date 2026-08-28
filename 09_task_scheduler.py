@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Final, List, Optional, Sequence
 
-WEEKDAYS: Final[List[str]] = [
+WEEKDAYS: Final[tuple[str, ...]] = (
     "Monday",
     "Tuesday",
     "Wednesday",
@@ -11,7 +11,9 @@ WEEKDAYS: Final[List[str]] = [
     "Friday",
     "Saturday",
     "Sunday",
-]
+)
+
+_DAYS_IN_MONTH: Final[tuple[int, ...]] = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
 
 
 class ScheduledTask:
@@ -22,7 +24,7 @@ class ScheduledTask:
     name: str
     interval_days: int
     next_run: datetime
-    run_history: List[str]
+    run_history: list[str]
 
     def __init__(
         self,
@@ -34,7 +36,7 @@ class ScheduledTask:
             raise ValueError("interval_days must be greater than zero.")
         self.name = name
         self.interval_days = interval_days
-        self.next_run = next_run or datetime.now(timezone.utc)
+        self.next_run = next_run if next_run is not None else datetime.now(timezone.utc)
         self.run_history = []
 
     def is_due(self, now: Optional[datetime] = None) -> bool:
@@ -50,20 +52,23 @@ class ScheduledTask:
 
 def tasks_between(
     tasks: Sequence[ScheduledTask], start: datetime, end: datetime
-) -> List[ScheduledTask]:
+) -> list[ScheduledTask]:
     """Return tasks that run between start and end inclusive."""
     return [task for task in tasks if start <= task.next_run <= end]
 
 
 def add_months(date: datetime, months: int) -> datetime:
     """Return a new date with `months` added."""
+    if not isinstance(months, int):
+        raise TypeError("months must be an integer.")
+        
     total_months = date.month - 1 + months
     year = date.year + total_months // 12
     month = total_months % 12 + 1
     
     # Handle overflow in days for months with fewer days
     is_leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
-    max_days = [31, 29 if is_leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+    max_days = 29 if month == 2 and is_leap else _DAYS_IN_MONTH[month - 1]
     day = min(date.day, max_days)
     
     return date.replace(year=year, month=month, day=day)
@@ -71,6 +76,8 @@ def add_months(date: datetime, months: int) -> datetime:
 
 def parse_deadline(deadline_str: str) -> datetime:
     """Parse deadlines written in strict DD/MM/YYYY format with robust error handling."""
+    if not isinstance(deadline_str, str):
+        raise TypeError("deadline_str must be a string.")
     try:
         return datetime.strptime(deadline_str, "%d/%m/%Y")
     except (ValueError, TypeError) as err:
@@ -78,5 +85,7 @@ def parse_deadline(deadline_str: str) -> datetime:
 
 
 def weekday_name(date: datetime) -> str:
-    """Return the weekday name for a date using safe array indexing."""
+    """Return the weekday name for a date using safe tuple indexing."""
+    if not isinstance(date, datetime):
+        raise TypeError("date must be a datetime instance.")
     return WEEKDAYS[date.weekday()]
