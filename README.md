@@ -7,3 +7,4 @@ This directory contains specialized test modules populated with intentional bugs
 
 ---
 
+all test run on 2.5 flash lite.
