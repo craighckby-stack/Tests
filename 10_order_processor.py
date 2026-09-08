@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Final, List, Optional, Sequence, Tuple
 import copy
+import re
 
 VALID_TRANSITIONS: Final[dict[str, list[str]]] = {
     "pending": ["paid", "cancelled"],
@@ -79,10 +80,8 @@ def find_order(orders: Sequence[Order], order_id: str) -> Optional[Order]:
 
 def validate_email(address: str) -> bool:
     """True if the address looks like a valid email address."""
-    if "@" not in address:
+    if not address or "@" not in address:
         return False
-    parts = address.split("@")
-    if len(parts) != 2 or not parts[0] or not parts[1]:
-        return False
-    domain = parts[1]
-    return "." in domain and not domain.startswith(".") and not domain.endswith(".")
+    # Robust RFC-compliant basic email regex validation pattern
+    pattern = r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)"
+    return bool(re.match(pattern, address))
