@@ -21,16 +21,17 @@ def load_sales(path: Union[str, Path]) -> List[Dict[str, str]]:
 
 
 def summarize(rows: List[Dict[str, str]]) -> Dict[str, float]:
-    """Summarize sales amounts by region."""
+    """Summarize sales amounts by region with type safety and robust parsing."""
     totals: Dict[str, float] = {}
     for row in rows:
-        region = row.get("region", "Unknown").strip()
+        region = row.get("region", "Unknown")
+        region_str = region.strip() if region else "Unknown"
         raw_amount = row.get("amount", "0")
         try:
             amount = float(raw_amount) if raw_amount else 0.0
         except (ValueError, TypeError):
             amount = 0.0
-        totals[region] = totals.get(region, 0.0) + amount
+        totals[region_str] = totals.get(region_str, 0.0) + amount
     return totals
 
 
