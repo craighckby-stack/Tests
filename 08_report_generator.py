@@ -16,7 +16,8 @@ def load_sales(path: Union[str, Path]) -> List[Dict[str, str]]:
     with file_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append(row)
+            if row:
+                rows.append(row)
     return rows
 
 
@@ -28,7 +29,7 @@ def summarize(rows: List[Dict[str, str]]) -> Dict[str, float]:
         region_str = region.strip() if region else "Unknown"
         raw_amount = row.get("amount", "0")
         try:
-            amount = float(raw_amount) if raw_amount else 0.0
+            amount = float(raw_amount) if raw_amount is not None else 0.0
         except (ValueError, TypeError):
             amount = 0.0
         totals[region_str] = totals.get(region_str, 0.0) + amount
