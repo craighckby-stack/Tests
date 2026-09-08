@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Final, List, Optional, Sequence, Tuple
+from typing import Any, Final, List, Optional, Sequence, Tuple
 import copy
 
-VALID_TRANSITIONS: Final[Dict[str, List[str]]] = {
+VALID_TRANSITIONS: Final[dict[str, list[str]]] = {
     "pending": ["paid", "cancelled"],
     "paid": ["shipped", "refunded", "cancelled"],
     "shipped": ["delivered", "returned"],
@@ -51,7 +51,7 @@ class Order:
         self.set_status("refunded")
 
 
-def order_from_csv(row: Dict[str, Any]) -> Order:
+def order_from_csv(row: dict[str, Any]) -> Order:
     """Build an Order from a CSV row dict.
 
     CSV columns: order_id, sku, qty, price, shipping_address
