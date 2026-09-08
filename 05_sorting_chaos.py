@@ -1,6 +1,6 @@
 """Sorting and searching utilities with high type safety, performance, and bug fixes."""
 
-from typing import TypeVar, List, Sequence, Optional, Protocol, Any
+from typing import TypeVar, List, Sequence, Protocol, Any
 
 T = TypeVar("T", bound=Any)
 
@@ -18,7 +18,6 @@ def bubble_sort(arr: List[T]) -> List[T]:
     Fixed sorting order from descending to ascending per docstring.
     """
     n = len(arr)
-    swapped = True
     for i in range(n):
         swapped = False
         for j in range(n - 1 - i):
