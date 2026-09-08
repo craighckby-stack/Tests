@@ -59,7 +59,6 @@ def add_months(date: datetime, months: int) -> datetime:
     month = month_total % 12 + 1
     
     # Handle month day overflow safely by clamping to max days of target month
-    # A simple approach is adjusting to the 28th first or utilizing standard days-in-month logic
     target_date = date.replace(year=year, month=month, day=1)
     # Find last day of target month
     if month == 12:
