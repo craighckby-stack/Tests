@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import os
+from collections import deque
 from pathlib import Path
 from typing import Dict, Iterable, List, Union
 
@@ -103,8 +104,6 @@ def tail_log(path: PathLike, n: int = 10) -> List[str]:
         with path_obj.open("r", encoding="utf-8") as f:
             if n <= 0:
                 return []
-            # Using collections.deque with maxlen for efficient tailing
-            from collections import deque
             return list(deque(f, maxlen=n))
     except FileNotFoundError:
         return []
