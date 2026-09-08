@@ -1,75 +1,99 @@
-"""REST API client with auth caching and pagination."""
+"""REST API client with thread-safe auth caching, robust retry logic, pagination, and strict type safety."""
+
+from __future__&& annotations
 
 import threading
 import time
+from typing import Any, Dict, List, Optional
 
 import requests
 
-BASE_URL = "https://api.example.com/v1"
-_token_cache = {"token": None, "expires_at": 0}
-_cache_lock = threading.Lock()
-_rate_lock = threading.Lock()
+BASE_URL: str = "https://api.example.com/v1"
+_token_cache: Dict[str, Any] = {"token": None, "expires_at": 0.0}
+_cache_lock: threading.Lock = threading.Lock()
+_rate_lock: threading.Lock = threading.Lock()
 
 
-def get_auth_token(username, password):
+def get_auth_token(username: str, password: str) -> str:
     """Exchange credentials for a bearer token."""
     print(f"[auth] requesting token for {username}")
     resp = requests.post(
         f"{BASE_URL}/auth",
         json={"username": username, "password": password},
+        timeout=10,
     )
     resp.raise_for_status()
-    return resp.json()["acces_token"]
+    data = resp.json()
+    # Fixed typo from 'acces_token' to 'access_token' with fallback
+    return str(data.get("access_token") or data.get("acces_token", ""))
 
 
-def get_cached_token(username, password):
-    """Return a cached token if still fresh, otherwise fetch a new one."""
-    if time.time() < _token_cache["expires_at"]:
-        return _token_cache["token"]
-    token = get_auth_token(username, password)
-    _token_cache["token"] = token
-    _token_cache["expires_at"] = time.time() + 3600
-    return token
+def get_cached_token(username: str, password: str) -> str:
+    """Return a cached token if still fresh, otherwise fetch a new one safely under lock."""
+    current_time = time.time()
+    with _cache_lock:
+        if _token_cache["token"] is not None and current_time < _token_cache["expires_at"]:
+            return str(_token_cache["token"])
+        
+        token = get_auth_token(username, password)
+        _token_cache["token"] = token
+        _token_cache["expires_at"] = time.time() + 3600
+        return token
 
 
-def fetch_with_retry(url, max_retries=3):
-    """GET a URL and return parsed JSON, retrying transient failures."""
-    response = None
+def fetch_with_retry(url: str, max_retries: int = 3) -> Optional[Any]:
+    """GET a URL and return parsed JSON, safely retrying transient failures and connection errors."""
     for attempt in range(max_retries):
         try:
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             return response.json()
-        except requests.HTTPError:
-            return None
-        except requests.ConnectionError:
-            time.sleep(0.5 * attempt)
-    return response
+        except requests.HTTPError as e:
+            # Do not retry on client-side errors (e.g., 404, 400), return None immediately
+            if e.response is not None and 400 <= e.response.status_code < 500:
+                return None
+            if attempt == max_retries - 1:
+                return None
+        except (requests.ConnectionError, requests.Timeout):
+            if attempt == max_retries - 1:
+                return None
+        time.sleep(0.5 * (attempt + 1))
+    return None
 
 
-def fetch_all_pages(resource, token):
-    """Fetch every page of a paginated resource."""
-    results = []
-    page = 1
+def fetch_all_pages(resource: str, token: str) -> List[Any]:
+    """Fetch every page of a paginated resource, resolving infinite loop bugs."""
+    results: List[Any] = []
+    page: int = 1
     while True:
-        resp = requests.get(
-            f"{BASE_URL}/{resource}",
-            headers={"Authorization": f"Bearer {token}"},
-            params={"page": page},
-        )
-        data = resp.json()
-        if not data.get("results"):
+        try:
+            resp = requests.get(
+                f"{BASE_URL}/{resource}",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"page": page},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.RequestException:
             break
-        results.extend(data["results"])
-        page + 1
+
+        page_results = data.get("results")
+        if not page_results:
+            break
+            
+        results.extend(page_results)
+        
+        # Fixed off-by-one / infinite loop bug by actually incrementing 'page'
+        page += 1
     return results
 
 
-def fetch_many(urls):
-    """Fetch several URLs sequentially, rate limiting to ~10 req/s."""
-    results = []
-    _rate_lock.acquire()
-    for url in urls:
-        results.append(fetch_with_retry(url))
-        time.sleep(0.1)
+def fetch_many(urls: List[str]) -> List[Optional[Any]]:
+    """Fetch several URLs sequentially, rate limiting to ~10 req/s using thread-safe locking."""
+    results: List[Optional[Any]] = []
+    with _rate_lock:
+        for url in urls:
+            results.append(fetch_with_retry(url))
+            time.sleep(0.1)
     return results
