@@ -27,7 +27,7 @@ These artifacts serve as performance benchmarks, regression suites, and evaluati
 To run the benchmark suite and verify neural engine optimizations against these targets, execute your test runner or evaluation script within this environment. Ensure all type hints and static analysis tools are configured correctly.
 
 ```bash
-# Example test execution command
+# Example test execution command for verifying neural engine code repairs
 pytest --strict-markers -v
 ```
 
