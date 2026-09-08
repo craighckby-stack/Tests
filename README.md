@@ -7,4 +7,15 @@ This directory contains specialized test modules populated with intentional bugs
 
 ---
 
-all test run on 2.5 flash lite.
+## Execution Environment
+
+All test suites are executed and benchmarked on the **2.5 Flash Lite** model architecture.
+
+### Quick Start
+
+To execute the test suite against the target model, run the following command:
+
+```bash
+# Execute the comprehensive test harness on 2.5 Flash Lite
+python -m emg_core.harness --model "2.5-flash-lite" --verbose
+```
