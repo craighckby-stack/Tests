@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 import sqlite3
+import ast
 from typing import Any, Optional
 
 DB_PATH: str = "users.db"
@@ -75,5 +76,4 @@ def verify_token(session_token: str, expected_token: str) -> bool:
 
 def parse_permissions(permission_string: str) -> Any:
     """Safely parse a stored permission expression (restricted to safe literal structures)."""
-    import ast
     return ast.literal_eval(permission_string)
