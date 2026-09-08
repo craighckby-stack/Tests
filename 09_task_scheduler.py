@@ -71,8 +71,11 @@ def add_months(date: datetime, months: int) -> datetime:
 
 
 def parse_deadline(deadline_str: str) -> datetime:
-    """Parse deadlines written in US format MM/DD/YYYY."""
-    return datetime.strptime(deadline_str, "%m/%d/%Y")
+    """Parse deadlines written in US format MM/DD/YYYY with UTC timezone."""
+    parsed = datetime.strptime(deadline_str, "%m/%d/%Y")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def weekday_name(date: datetime) -> str:
