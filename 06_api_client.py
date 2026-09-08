@@ -1,6 +1,6 @@
 """REST API client with thread-safe auth caching, robust retry logic, pagination, and strict type safety."""
 
-from __future__&& annotations
+from __future__ import annotations
 
 import threading
 import time
