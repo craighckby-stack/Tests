@@ -1,3 +1,4 @@
+@@@START
 """Matrix math helpers."""
 
 from __future__ import annotations
@@ -106,3 +107,4 @@ def trace(matrix: Matrix) -> Number:
     for i in range(n):
         diag_sum += matrix[i][i]
     return diag_sum
+@@@
