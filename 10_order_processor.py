@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Final, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Final, List, Optional, Sequence, Tuple
 import copy
 
 VALID_TRANSITIONS: Final[Dict[str, List[str]]] = {
@@ -31,10 +31,9 @@ class Order:
 
     def calculate_total(self, discount_percent: float = 0.0) -> float:
         """Sum item totals and apply a percentage discount."""
-        subtotal = 0.0
-        for sku, qty, unit_price in self.items:
-            subtotal += float(qty) * float(unit_price)
-        discounted = subtotal * (1.0 - (discount_percent / 100.0 if discount_percent > 1.0 else discount_percent))
+        subtotal = sum(float(qty) * float(unit_price) for _, qty, unit_price in self.items)
+        discount_factor = discount_percent / 100.0 if discount_percent > 1.0 else discount_percent
+        discounted = subtotal * (1.0 - discount_factor)
         return round(max(0.0, discounted), 2)
 
     def set_status(self, new_status: str) -> str:
@@ -58,7 +57,6 @@ def order_from_csv(row: Dict[str, Any]) -> Order:
     CSV columns: order_id, sku, qty, price, shipping_address
     """
     items = [(str(row["sku"]), int(row["qty"]), float(row["price"]))]
-    # Fixed typo in key lookup: "shpping_address" -> "shipping_address" with fallback
     shipping = row.get("shipping_address", row.get("shpping_address", ""))
     return Order(str(row["order_id"]), items, str(shipping))
 
