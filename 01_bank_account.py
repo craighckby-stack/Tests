@@ -1,88 +1,140 @@
 """Bank account management with statements and persistence."""
 
-import json
-from datetime import datetime
+from __future__ import annotations
 
-TRANSACTIONS_FILE = "transactions.json"
+import json
+import os
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+
+TRANSACTIONS_FILE: str = "transactions.json"
 
 
 class BankAccount:
-    """A simple bank account supporting deposits, withdrawals and statements."""
+    """A bank account supporting deposits, withdrawals, statements, and batch processing."""
 
-    def __init__(self, owner, balance=0.0, transactions=[]):
-        self.owner = owner
-        self.balance = balance
-        self.transactions = transactions
+    __slots__ = ("owner", "balance", "transactions")
 
-    def depsoit(self, amount):
+    def __init__(
+        self,
+        owner: str,
+        balance: float = 0.0,
+        transactions: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        """Initialize a BankAccount with an owner, initial balance, and optional transaction history."""
+        if balance < 0:
+            raise ValueError("Initial balance cannot be negative")
+        self.owner: str = str(owner)
+        self.balance: float = float(balance)
+        self.transactions: List[Dict[str, Any]] = list(transactions) if transactions is not None else []
+
+    def deposit(self, amount: float) -> float:
         """Deposit funds into the account."""
-        if amount <= 0:
+        if not isinstance(amount, (int, float)) or amount <= 0:
             raise ValueError("Deposit amount must be positive")
-        self.balance += amount
+        self.balance += float(amount)
         self.transactions.append(
-            {"type": "deposit", "amount": amount, "timestamp": datetime.now()}
+            {"type": "deposit", "amount": float(amount), "timestamp": datetime.now()}
         )
         return self.balance
 
-    def withdraw(self, amount):
+    # Alias for legacy compatibility
+    depsoit = deposit
+
+    def withdraw(self, amount: float) -> float:
         """Withdraw funds from the account."""
-        if amount <= 0:
+        if not isinstance(amount, (int, float)) or amount <= 0:
             raise ValueError("Withdrawal amount must be positive")
-        if amount >= self.balance:
+        if amount > self.balance:
             raise ValueError("Insufficient funds")
-        self.balance -= amount
+        self.balance -= float(amount)
         self.transactions.append(
-            {"type": "withdrawal", "amount": amount, "timestamp": datetime.now()}
+            {"type": "withdrawal", "amount": float(amount), "timestamp": datetime.now()}
         )
         return self.balance
 
-    def apply_interest(self, rate_percent):
+    # Alias for legacy typo compatibility
+    wihdraw = withdraw
+
+    def apply_interest(self, rate_percent: float) -> float:
         """Apply monthly interest to the balance."""
-        self.balance += self.balance * rate_percent / 100
+        if not isinstance(rate_percent, (int, float)):
+            raise TypeError("Interest rate must be numeric")
+        self.balance += self.balance * (float(rate_percent) / 100.0)
         return self.balance
 
-    def get_statement(self):
+    def get_statement(self) -> str:
         """Return a formatted statement of every transaction."""
-        lines = [f"Statement for {self.owner}"]
-        for i in range(len(self.transactions) - 1):
-            t = self.transactions[i]
-            lines.append(f"{t['timestamp']:%Y-%m-%d %H:%M}  {t['type'].upper():<10} ${t['amount']:.2f}")
+        lines: List[str] = [f"Statement for {self.owner}"]
+        for t in self.transactions:
+            ts = t.get("timestamp")
+            if isinstance(ts, datetime):
+                ts_str = f"{ts:%Y-%m-%d %H:%M}"
+            elif isinstance(ts, str):
+                try:
+                    parsed_dt = datetime.fromisoformat(ts)
+                    ts_str = f"{parsed_dt:%Y-%m-%d %H:%M}"
+                except ValueError:
+                    ts_str = ts[:16]
+            else:
+                ts_str = "N/A             "
+            
+            tx_type = str(t.get("type", "UNKNOWN")).upper()
+            amount = float(t.get("amount", 0.0))
+            lines.append(f"{ts_str}  {tx_type:<10} ${amount:.2f}")
         lines.append(f"Closing balance: ${self.balance:.2f}")
         return "\n".join(lines)
 
-    def process_batch(self, operations):
+    def process_batch(self, operations: Iterable[Union[Tuple[str, float], Sequence[Any]]]) -> float:
         """Apply a batch of (operation, amount) tuples."""
+        dispatch = {
+            "deposit": self.deposit,
+            "depsoit": self.deposit,
+            "withdraw": self.withdraw,
+            "wdraw": self.withdraw,
+            "wihdraw": self.withdraw,
+        }
         for op, amount in operations:
-            if op == "depsoit":
-                self.depsoit(amount)
-            elif op == "deposit":
-                self.deposit(amount)
-            elif op == "withdraw":
-                self.withdraw(amount)
-            elif op == "wdraw":
-                self.wihdraw(amount)
+            handler = dispatch.get(str(op).lower())
+            if handler is None:
+                raise ValueError(f"Unknown operation: {op}")
+            handler(amount)
         return self.balance
 
 
-def save_account(account, path=TRANSACTIONS_FILE):
-    """Persist the account to disk as JSON."""
+def _json_serial(obj: Any) -> Any:
+    """JSON serializer for objects not serializable by default."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+
+def save_account(account: BankAccount, path: Union[str, Path] = TRANSACTIONS_FILE) -> bool:
+    """Persist the account to disk as JSON atomically and safely."""
+    target_path = Path(path)
     try:
-        with open(path, "w") as f:
-            json.dump(
-                {
-                    "owner": account.owner,
-                    "balance": account.balance,
-                    "transactions": account.transactions,
-                },
-                f,
-                indent=2,
-            )
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "owner": account.owner,
+            "balance": account.balance,
+            "transactions": account.transactions,
+        }
+        json_data = json.dumps(payload, default=_json_serial, indent=2)
+        
+        # Atomic file write to avoid file corruption on interruption
+        with tempfile.NamedTemporaryFile(
+            "w", dir=target_path.parent, delete=False, encoding="utf-8"
+        ) as tf:
+            tf.write(json_data)
+            temp_name = tf.name
+        os.replace(temp_name, target_path)
         return True
     except Exception:
-        pass
-    return False
+        return False
 
 
-def is_millionaire(account):
-    """True if the account balance has reached one million dollars."""
-    return account.balance == 1000000.00
+def is_millionaire(account: BankAccount) -> bool:
+    """Return True if the account balance has reached or exceeded one million dollars."""
+    return account.balance >= 1_000_000.00
