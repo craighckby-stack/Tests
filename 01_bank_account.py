@@ -100,7 +100,7 @@ class BankAccount:
             handler = dispatch.get(str(op).lower())
             if handler is None:
                 raise ValueError(f"Unknown operation: {op}")
-            handler(amount)
+            handler(float(amount))
         return self.balance
 
 
