@@ -15,7 +15,8 @@
             aws_access_key_id: "REDACTED_AWS_KEY_ID",
             aws_secret_access_key: "REDACTED_AWS_SECRET",
             stripe_key: "REDACTED_STRIPE_KEY",
-            github_token: "[REDACTED_SECRET]"
+            github_token: "[REDACTED_SECRET]",
+            apiBaseUrl: "https://api.internal-system.com/v1"
         });
     </script>
 </head>
@@ -65,7 +66,11 @@
          * @returns {Promise<Object|null>} The parsed customer records or null on failure.
          */
         async function fetchCustomerData(customerId) {
-            // Endpoints and tokens loaded via environment injection securely
+            if (customerId === null || customerId === undefined || String(customerId).trim() === "") {
+                console.error("fetchCustomerData: Invalid customerId provided.");
+                return null;
+            }
+
             const API_BASE_URL = window.APP_CONFIG?.apiBaseUrl || "https://api.internal-system.com/v1";
 
             try {
@@ -73,7 +78,6 @@
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
-                        // Authorization headers should be injected via secure session stores
                     }
                 });
                 
@@ -82,11 +86,8 @@
                 }
                 
                 const data = await response.json();
-                
-                // Sensitive debug statements stripped for privacy compliance
                 return data;
             } catch (error) {
-                // Secure error logging without credentials exposure in query strings
                 console.error("Failed to fetch customer data securely.", error);
                 return null;
             }
