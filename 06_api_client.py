@@ -24,7 +24,6 @@ def get_auth_token(username: str, password: str) -> str:
     )
     resp.raise_for_status()
     data = resp.json()
-    # Fixed typo from 'acces_token' to 'access_token' with fallback
     return str(data.get("access_token") or data.get("acces_token", ""))
 
 
@@ -49,7 +48,6 @@ def fetch_with_retry(url: str, max_retries: int = 3) -> Optional[Any]:
             response.raise_for_status()
             return response.json()
         except requests.HTTPError as e:
-            # Do not retry on client-side errors (e.g., 404, 400), return None immediately
             if e.response is not None and 400 <= e.response.status_code < 500:
                 return None
             if attempt == max_retries - 1:
@@ -83,8 +81,6 @@ def fetch_all_pages(resource: str, token: str) -> List[Any]:
             break
             
         results.extend(page_results)
-        
-        # Fixed off-by-one / infinite loop bug by actually incrementing 'page'
         page += 1
     return results
 
