@@ -96,7 +96,10 @@ class BankAccount:
             "wdraw": self.withdraw,
             "wihdraw": self.withdraw,
         }
-        for op, amount in operations:
+        for item in operations:
+            if not isinstance(item, (list, tuple)) or len(item) < 2:
+                raise ValueError(f"Invalid operation format: {item}")
+            op, amount = item[0], item[1]
             handler = dispatch.get(str(op).lower())
             if handler is None:
                 raise ValueError(f"Unknown operation: {op}")
@@ -124,13 +127,21 @@ def save_account(account: BankAccount, path: Union[str, Path] = TRANSACTIONS_FIL
         json_data = json.dumps(payload, default=_json_serial, indent=2)
         
         # Atomic file write to avoid file corruption on interruption
-        with tempfile.NamedTemporaryFile(
-            "w", dir=target_path.parent, delete=False, encoding="utf-8"
-        ) as tf:
-            tf.write(json_data)
-            temp_name = tf.name
-        os.replace(temp_name, target_path)
-        return True
+        temp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w", dir=target_path.parent, delete=False, encoding="utf-8"
+            ) as tf:
+                tf.write(json_data)
+                temp_name = tf.name
+            os.replace(temp_name, target_path)
+            return True
+        finally:
+            if temp_name and os.path.exists(temp_name):
+                try:
+                    os.unlink(temp_name)
+                except OSError:
+                    pass
     except Exception:
         return False
 
