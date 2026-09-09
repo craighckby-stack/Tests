@@ -65,16 +65,18 @@ class BankAccount:
         """Return a formatted statement of every transaction."""
         lines = [f"Statement for {self.owner}"]
         for t in self.transactions:
-            ts = t["timestamp"]
+            ts = t.get("timestamp")
             if isinstance(ts, str):
                 try:
                     ts_dt = datetime.fromisoformat(ts)
                 except ValueError:
                     ts_dt = datetime.now()
-            else:
+            elif isinstance(ts, datetime):
                 ts_dt = ts
+            else:
+                ts_dt = datetime.now()
             lines.append(
-                f"{ts_dt:%Y-%m-%d %H:%M}  {str(t['type']).upper():<10} ${float(t['amount']):.2f}"
+                f"{ts_dt:%Y-%m-%d %H:%M}  {str(t.get('type', 'unknown')).upper():<10} ${float(t.get('amount', 0.0)):.2f}"
             )
         lines.append(f"Closing balance: ${self.balance:.2f}")
         return "\n".join(lines)
@@ -90,17 +92,18 @@ class BankAccount:
 
 
 def save_account(account: BankAccount, path: str = TRANSACTIONS_FILE) -> bool:
-    """Persist the account to disk as JSON."""
+    """Persist the account to disk as JSON safely with atomic handling."""
     try:
-        # Serialize datetime objects securely
         serialized_transactions = []
         for t in account.transactions:
             t_copy = t.copy()
-            if isinstance(t_copy.get("timestamp"), datetime):
-                t_copy["timestamp"] = t_copy["timestamp"].isoformat()
+            ts = t_copy.get("timestamp")
+            if isinstance(ts, datetime):
+                t_copy["timestamp"] = ts.isoformat()
             serialized_transactions.append(t_copy)
 
-        with open(path, "w", encoding="utf-8") as f:
+        temp_path = f"{path}.tmp"
+        with open(temp_path, "w", encoding="utf-8") as f:
             json.dump(
                 {
                     "owner": account.owner,
@@ -110,8 +113,10 @@ def save_account(account: BankAccount, path: str = TRANSACTIONS_FILE) -> bool:
                 f,
                 indent=2,
             )
+        import os
+        os.replace(temp_path, path)
         return True
-    except Exception:
+    except (TypeError, OSError, ValueError):
         return False
 
 
