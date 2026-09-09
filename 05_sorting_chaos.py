@@ -1,6 +1,6 @@
 """Sorting and searching utilities with high-performance, type-safe implementations."""
 
-from typing import TypeVar, List, Protocol, Optional, Sequence
+from typing import TypeVar, List, Protocol, Sequence, Any
 
 class Comparable(Protocol):
     """Protocol defining objects that support rich comparison operations."""
